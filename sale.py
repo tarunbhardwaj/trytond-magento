@@ -153,6 +153,7 @@ class Sale:
         return Sale(**{
             'reference': channel.magento_order_prefix +
                 order_data['increment_id'],
+            'channel_identifier': order_data['increment_id'],
             'sale_date': order_data['created_at'].split()[0],
             'party': party.id,
             'currency': currency.id,
@@ -393,8 +394,7 @@ class Sale:
 
         sales = cls.search([
             (
-                'reference', '=', channel.magento_order_prefix +
-                order_increment_id
+                'channel_identifier', '=', order_increment_id
             ),
             ('channel', '=', channel.id)
         ])
@@ -482,11 +482,7 @@ class Sale:
 
         channel.validate_magento_channel()
 
-        if channel.magento_order_prefix:
-            # TODO: Use channel_identifier
-            increment_id = self.reference.split(channel.magento_order_prefix)[1]
-        else:
-            increment_id = self.reference
+        increment_id = self.channel_identifier
         # This try except is placed because magento might not accept this
         # order status change due to its workflow constraints.
         # TODO: Find a better way to do it
@@ -512,6 +508,7 @@ class Sale:
             default = {}
         default = default.copy()
         default['magento_id'] = None
+        default['channel_identifier'] = None
         return super(Sale, cls).copy(sales, default=default)
 
     def update_order_status_from_magento(self, order_data=None):
@@ -529,7 +526,7 @@ class Sale:
                 self.channel.magento_url, self.channel.magento_api_user,
                 self.channel.magento_api_key
             ) as order_api:
-                order_data = order_api.info(self.reference)
+                order_data = order_api.info(self.channel_identifier)
 
         if order_data['status'] == 'complete':
             # Order is completed on magento, process shipments and

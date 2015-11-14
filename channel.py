@@ -536,10 +536,7 @@ class Channel:
 
         updated_sales = set([])
         for sale in sales:
-            # Get the increment id from the sale reference
-            increment_id = sale.reference[
-                len(self.magento_order_prefix): len(sale.reference)
-            ]
+            increment_id = sale.channel_identifier
 
             for shipment in sale.shipments:
                 try:
@@ -714,9 +711,10 @@ class Channel:
 
         sales = Sale.search([
             ('channel', '=', self.id),
+            ('channel_identifier', '!=', None),
             ('state', 'in', ('confirmed', 'processing')),
         ])
-        order_ids = [sale.reference for sale in sales]
+        order_ids = [sale.channel_identifier for sale in sales]
         for order_ids_batch in batch(order_ids, 50):
             with magento.Order(
                 self.magento_url, self.magento_api_user, self.magento_api_key
@@ -725,7 +723,7 @@ class Channel:
 
             for order_data in orders_data:
                 sale, = Sale.search([
-                    ('reference', '=', order_data['increment_id'])
+                    ('channel_identifier', '=', order_data['increment_id'])
                 ])
                 sale.update_order_status_from_magento(order_data=order_data)
 
